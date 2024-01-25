@@ -43,7 +43,7 @@ def _none_as_empty(v):
 
 
 class SVDJSONEncoder(json.JSONEncoder):
-    _TO_DICT_SKIP_KEYS = {"register_arrays", "parent"}
+    _TO_DICT_SKIP_KEYS = {"register_arrays", "parent", "fields_arrays"}
 
     def default(self, obj):
         if isinstance(obj, SVDElement):
@@ -83,6 +83,42 @@ class SVDEnumeratedValue(SVDElement):
         self.value = value
         self.is_default = is_default
 
+class SVDFieldArray(SVDElement):
+    def __init__(self, name, derived_from, description, bit_offset, bit_width, access, enumerated_values, modified_write_values, read_action, dim, dim_increment, dim_indices):
+        SVDElement.__init__(self)
+        self.name = name
+        self.derived_from = derived_from
+        self.description = description
+        self.bit_offset = bit_offset
+        self.bit_width = bit_width
+        self.access = access
+        self.enumerated_values = enumerated_values
+        self.modified_write_values = modified_write_values
+        self.read_action = read_action
+        self.dim = dim
+        self.dim_increment = dim_increment
+        self.dim_indices = dim_indices
+
+    @property
+    def fields(self):
+        for i in six.moves.range(self.dim):
+            field = SVDField(
+                name=self.name % self.dim_indices[i],
+                derived_from=self.derived_from,
+                description=self.description,
+                bit_offset=self.bit_offset,
+                bit_width=self.bit_width,
+                access=self.access,
+                enumerated_values=self.enumerated_values,
+                modified_write_values=self.modified_write_values,
+                read_action=self.read_action,
+            )
+            field.parent = self.parent
+            yield field
+
+    @property
+    def is_reserved(self):
+        return self.name.lower() == "reserved"
 
 class SVDField(SVDElement):
     def __init__(self, name, derived_from, description, bit_offset, bit_width, access, enumerated_values, modified_write_values, read_action):

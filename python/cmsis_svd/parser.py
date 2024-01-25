@@ -23,7 +23,7 @@ from cmsis_svd.model import SVDInterrupt
 from cmsis_svd.model import SVDAddressBlock
 from cmsis_svd.model import SVDRegister, SVDRegisterArray
 from cmsis_svd.model import SVDRegisterCluster, SVDRegisterClusterArray
-from cmsis_svd.model import SVDField
+from cmsis_svd.model import SVDField, SVDFieldArray
 from cmsis_svd.model import SVDEnumeratedValue
 from cmsis_svd.model import SVDCpu
 import re
@@ -399,17 +399,72 @@ class SVDParser(object):
             bit_offset = lsb
             bit_width = 1 + (msb - lsb)
 
-        return SVDField(
-            name=_get_text(field_node, 'name'),
-            derived_from=field_node.get('derivedFrom'),
-            description=_get_text(field_node, 'description'),
-            bit_offset=bit_offset,
-            bit_width=bit_width,
-            access=_get_text(field_node, 'access'),
-            enumerated_values=enumerated_values or None,
-            modified_write_values=modified_write_values,
-            read_action=read_action,
-        )
+        dim = _get_int(field_node, 'dim')
+        dim_index_text = _get_text(field_node, 'dimIndex')
+        dim_increment = _get_int(field_node, 'dimIncrement')
+
+        if dim is None:
+            return SVDField(
+                name=_get_text(field_node, 'name'),
+                derived_from=field_node.get('derivedFrom'),
+                description=_get_text(field_node, 'description'),
+                bit_offset=bit_offset,
+                bit_width=bit_width,
+                access=_get_text(field_node, 'access'),
+                enumerated_values=enumerated_values or None,
+                modified_write_values=modified_write_values,
+                read_action=read_action,
+            )
+        else:
+            # the node represents a register array
+            if dim_index_text is None:
+                dim_indices = list(range(0, dim))  # some files omit dimIndex
+            elif ',' in dim_index_text:
+                dim_indices = dim_index_text.split(',')
+            elif '-' in dim_index_text:  # some files use <dimIndex>0-3</dimIndex> as an inclusive inclusive range
+                start, stop = dim_index_text.split('-')
+
+                if start.isalpha() and stop.isalpha():
+                    start_val = ord(start)
+                    stop_val = ord(stop)
+
+                    dim_indices = [
+                        chr(val)
+                        for val in range(start_val, stop_val + 1)
+                    ]
+
+                elif start.isdigit() and stop.isdigit():
+                    start_val = int(start)
+                    stop_val = int(stop)
+
+                    dim_indices = [
+                        str(val)
+                        for val in range(start_val, stop_val + 1)
+                    ]
+
+                else:
+                    raise NotImplementedError(
+                        f'DimIndex={dim_index_text} is not supported.'
+                    )
+            else:
+                raise ValueError("Unexpected dim_index_text: %r" % dim_index_text)
+
+            # yield `SVDRegisterArray` (caller will differentiate on type)
+            return SVDFieldArray(
+                name=_get_text(field_node, 'name'),
+                derived_from=field_node.get('derivedFrom'),
+                description=_get_text(field_node, 'description'),
+                bit_offset=bit_offset,
+                bit_width=bit_width,
+                access=_get_text(field_node, 'access'),
+                enumerated_values=enumerated_values or None,
+                modified_write_values=modified_write_values,
+                read_action=read_action,
+                dim=dim,
+                dim_indices=dim_indices,
+                dim_increment=dim_increment,
+            )
+
 
     def _parse_registers(self, register_node):
         fields = []
