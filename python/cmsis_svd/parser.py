@@ -217,9 +217,10 @@ class SVDXmlPreprocessing:
         for dst in self._root.findall('.//enumeratedValues[@derivedFrom]'):
             src = self._root.find('.//enumeratedValues[name="{}"]'
                                   .format(dst.attrib['derivedFrom']))
+
             if src is not None:
-                 for src_tag in src.findall('./enumeratedValue'):
-                     self._derive_tag(src_tag, dst)
+                self._derive_tag(src, dst)
+                # for src_tag in src.findall('./enumeratedValue'):
 
     def _derived_from_field(self):
         for dst in self._root.findall('.//field[@derivedFrom]'):
