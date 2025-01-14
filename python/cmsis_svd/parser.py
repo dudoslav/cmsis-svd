@@ -232,7 +232,7 @@ class SVDXmlPreprocessing:
                 src = self._root.find('.//peripheral[name="{}"]'
                                       '//register[name="{}"]//field[name="{}"]'
                                       .format(derived_path[0], derived_path[1],
-                                              derived_path[3]))
+                                              derived_path[2]))
             else:
                 src = None
 
